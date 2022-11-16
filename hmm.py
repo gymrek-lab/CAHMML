@@ -69,26 +69,29 @@ class Sample:
 class State(ABC):
     
     @abstractmethod
-    def emission_probability(self,obs:Observation,**kwargs) -> float:
+    def emission_probability(self,obs:Iterable[Observation],hyperparameters:dict = {}) -> np.ndarray:     
         """Core emission function for the HMM, pass in extra information via kwargs
 
         Args:
-            obs (Observation): Observation for which to compute probability
+            obs (Iterable[Observation]): Observations for which to compute probability
+            hyperparameters (dict, optional): Any hyperparameters you'll want passed in later. Defaults to {}.
 
         Returns:
-            float: P(obs|self)
+            float: log10(P(obs|self)) x |SAMPLES|
         """        
         pass
 
     @abstractmethod    
-    def transition_probability(self,next:"State",**kwargs) -> float:
+    def transition_probability(self,next:"State",obs:Iterable[Observation],hyperparameters:dict = {}) -> np.ndarray:
         """Core transition function for the HMM, pass in extra infromation via kwargs
 
         Args:
-            next (State): State for which to compute probability
+            next (State): destination State for which to compute probability
+            obs (Iterable[Observations]): Observations for each sample 
+            hyperparameters (dict, optional): Any hyperparameters you'll want passed in later. Defaults to {}.
 
         Returns:
-            float: P(next|self)
+            float: log10(P(next|self)) x |SAMPLES|
         """        
         pass
 
@@ -106,23 +109,41 @@ class HMM:
         self.E = None
         self.initial_probabilities = None
 
-    def fit(self,samples:Iterable[Sample],initial_probabilities:Iterable[float]):
-        """Fits the HMM with the given samples
+    def fit(self,samples:Iterable[Sample],initial_probabilities:Iterable[float],e_hparams:dict = {},t_hparams:dict = {}):
+        """Fits the HMM with the given samples, pass extra information to functions with respective kwargs
 
         Args:
             samples (Iterable[Sample]): Samples to fit HMM
-            initial_probabilities (Iterable[float]): Initial probabilities to seed transition matrix 
+            initial_probabilities (Iterable[float]): Initial probabilities to seed transition matrix
+            e_hparams (dict, optional): Hyperparameters to be passed to emission function. Defaults to {}.
+            t_hparams (dict, optional): Hyperparameters to be passed to transition function. Defaults to {}.
         """        
-
+    
         self.samples = samples
         self.initial_probabilities = initial_probabilities
         # Any validations we need to assume before fitting
         self._validate()
 
+        # Initialize the matrices
+        self.initial_probabilities = np.log10(np.array(self.initial_probabilities))
         self.T = np.array([self.n_samples,self.n_states,self.n_states,self.n_obs])
         self.E = np.array([self.n_samples,self.n_states,self.n_obs])
 
-        # TODO: Ryan
+        # TODO: Ryan - May want to parallelize eventually
+        for i,obs in self.sample_iterator():
+            for s in self.states:
+                for t in self.states:
+                    self.T[:,s,t,i+1] = s.transition_probability(t,obs,t_hparams)
+                self.E[:,s,i] = s.emission_probability(obs,e_hparams)
+
+    def sample_iterator(self):
+        """Internal iterator to be passed to emission_probability and transition_probability
+
+        Yields:
+            List[Observation]: Observations for each Sample at a given timepoint
+        """        
+        for i in range(len(self.n_obs)):
+            yield i,[next(sample.obs) for sample in self.samples]
 
     def _validate(self):
         self.n_states = 0
