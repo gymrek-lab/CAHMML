@@ -131,7 +131,7 @@ class HMM:
         self.T = np.zeros([self.n_samples,self.n_states,self.n_states,self.n_obs])
 
         # TODO May want to parallelize eventually
-        for o,obs in track(self.sample_iterator(),total=self.n_obs,description="Populating T and E"):
+        for o,obs in track(self.sample_iterator(),total=self.n_obs,description="Fitting"):
             for i,s in enumerate(self.states):
                 self.E[:,i,o] = s.emission_probability(obs,e_hparams)
                 for j,t in enumerate(self.states):
@@ -247,12 +247,11 @@ class HMM:
 
         # Backtrack to find the best path
         z = T1[:,:,-1].argmax(axis=1)
-        X = np.zeros([self.n_samples,self.n_obs])
+        X = np.zeros([self.n_samples,self.n_obs],dtype=int)
         X[:,-1] = z
         for j in track(range(self.n_obs-1,1,-1),description="Backtracking"):
             # We need to index like this to satisfy numpy's "advanced" indexing
             z = T2[np.arange(T2.shape[0]),np.array(z),np.array([j]*self.n_samples)]
             X[:,j-1] = z
-            
         # Return states as an array
         return X

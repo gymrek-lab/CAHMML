@@ -83,8 +83,8 @@ if __name__ == "__main__":
         Clothing("Jeans"),
         Clothing("Parka")
     ]
-    n_samples = 10
-    n_obs = 1000
+    n_samples = 100
+    n_obs = 10
 
     samples = []
     for i in range(n_samples):
@@ -93,4 +93,6 @@ if __name__ == "__main__":
 
     model = h.HMM(states)
     model.fit(samples,[1/3]*len(states))
-    model.viterbi()
+    X = model.viterbi()
+    #for j in range(10):
+    #    print("\t".join([f'{str(states[i])},{str(o)}' for i,o in zip(X[j],samples[j].obs)]))
