@@ -1,5 +1,5 @@
 import sys
-sys.path.append("/projects/ps-gymreklab/eveloff/CAHMML/src")
+sys.path.append("src")
 
 import hmm as h
 import hmm_util as hu
