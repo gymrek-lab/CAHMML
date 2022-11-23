@@ -83,12 +83,14 @@ if __name__ == "__main__":
         Clothing("Jeans"),
         Clothing("Parka")
     ]
-    n_samples = 88
-    n_obs = 1000000
+    n_samples = 10
+    n_obs = 1000
 
     samples = []
     for i in range(n_samples):
-        samples.append(h.Sample(i,h.np.random.choice(observation_options,n_obs)))
+        o = h.np.random.choice(observation_options,n_obs)
+        samples.append(h.Sample(i,o))
 
     model = h.HMM(states)
     model.fit(samples,[1/3]*len(states))
+    model.viterbi()
