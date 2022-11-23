@@ -3,6 +3,7 @@ from abc import ABC,abstractmethod
 import numpy as np
 import hmm_util as hu
 from rich.progress import track
+import multiprocessing as mp
 
 class Observation(ABC):
     """Observation for use in HMM. Note that while this is fully abstract, it should have some properties!
@@ -97,7 +98,7 @@ class State(ABC):
 
 class HMM:
     
-    def __init__(self,states:Iterable[State]):
+    def __init__(self,states:Iterable[State]):      
         """Constructor for HMM
 
         Args:
@@ -117,8 +118,8 @@ class HMM:
             initial_probabilities (Iterable[float]): Initial probabilities to seed transition matrix
             e_hparams (dict, optional): Hyperparameters to be passed to emission function. Defaults to {}.
             t_hparams (dict, optional): Hyperparameters to be passed to transition function. Defaults to {}.
-        """        
-    
+        """
+
         self.samples = samples
         self.initial_probabilities = initial_probabilities
         # Any validations we need to assume before fitting
@@ -126,17 +127,15 @@ class HMM:
 
         # Initialize the matrices
         self.initial_probabilities = np.log10(np.array(self.initial_probabilities))
-        self.T = np.zeros([self.n_samples,self.n_states,self.n_states,self.n_obs])
         self.E = np.zeros([self.n_samples,self.n_states,self.n_obs])
+        self.T = np.zeros([self.n_samples,self.n_states,self.n_states,self.n_obs])
 
-        # TODO: Ryan - May want to parallelize eventually
+        # TODO May want to parallelize eventually
         for o,obs in track(self.sample_iterator(),total=self.n_obs,description="Populating T and E"):
-            for i in range(self.n_states):
-                for j in range(self.n_states):
-                    s = self.states[i]
-                    t = self.states[j]
-                    self.T[:,i,j,o] = s.transition_probability(t,obs,t_hparams)
+            for i,s in enumerate(self.states):
                 self.E[:,i,o] = s.emission_probability(obs,e_hparams)
+                for j,t in enumerate(self.states):
+                    self.T[:,i,j,o] = s.transition_probability(t,obs,t_hparams)
 
     def sample_iterator(self):
         """Internal iterator to be passed to emission_probability and transition_probability
@@ -210,17 +209,20 @@ class HMM:
         except AssertionError:
             raise hu.HMMValidationError(f"Initial probabilities shape does not match number of states ({len(self.initial_probabilities)} vs {self.n_states})")
         
-    def EM(self) -> np.ndarray:
-        """Run Expectation-Maximization on the HMM
+    def viterbi(self) -> np.ndarray:
+        """Run Viterbi algorithm on the HMM
+
+        Raises:
+            hu.HMMValidationError: Raised if fit() was not called first
 
         Returns:
             np.ndarray: |Samples| x |Observations| matrix with state predictions
-        """
+        """ 
 
         # Validate that we've already fit samples
         try:
             assert self.samples is not None
         except AssertionError:
-            raise hu.HMMValidationError("Call fit() before EM()")
+            raise hu.HMMValidationError("Call fit() before viterbi()")
 
         # TODO: Den
