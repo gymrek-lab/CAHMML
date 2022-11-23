@@ -233,10 +233,15 @@ class HMM:
         # Populate Viterbi
         for o in track(range(1,self.n_obs),description="Populating"):
 
+            # This line is very confusing, so here's more of a description
+            # Line 1: T1[k,j-1]
+            # Line 2: Aki
+            # Line 3: Biy
             tmp = np.repeat(T1[:,:,o-1,np.newaxis],self.n_states,axis=-1) + \
                   self.T[:,:,:,o] + \
                   np.repeat(self.E[:,:,o,np.newaxis],self.n_states,axis=-1)
 
+            # Max and argmax, respectively
             T1[:,:,o] = tmp.max(axis=1)
             T2[:,:,o] = tmp.argmax(axis=1)
 
@@ -245,8 +250,9 @@ class HMM:
         X = np.zeros([self.n_samples,self.n_obs])
         X[:,-1] = z
         for j in track(range(self.n_obs-1,1,-1),description="Backtracking"):
+            # We need to index like this to satisfy numpy's "advanced" indexing
             z = T2[np.arange(T2.shape[0]),np.array(z),np.array([j]*self.n_samples)]
             X[:,j-1] = z
-        
+            
         # Return states as an array
         return X
