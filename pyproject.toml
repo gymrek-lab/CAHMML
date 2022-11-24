@@ -1,14 +1,13 @@
 [tool.poetry]
 name = "cahmml"
 version = "0.1.0"
-description = ""
+description = "Custom Lambda HMM Library"
 authors = ["Ryan Eveloff, Denghui Chen"]
 
 [tool.poetry.dependencies]
 python = "^3.11"
 numpy = "^1.23.5"
 rich = "^12.6.0"
-dask = {extras = ["distributed"], version = "^2022.11.1"}
 
 [tool.poetry.dev-dependencies]
 
