@@ -244,15 +244,14 @@ class HMM:
             T2[:,:,o] = tmp.argmax(axis=1)
 
         # Backtrack to find the best path
-        z = T1[:,:,-1].argmax(axis=1)
-        X = np.zeros([self.n_samples,self.n_obs],dtype=int)
-        X[:,-1] = z
+        bt_ptr = T1[:,:,-1].argmax(axis=1)
+        bt = np.zeros([self.n_samples,self.n_obs],dtype=int)
+        bt[:,-1] = bt_ptr
         
-        for j in track(range(self.n_obs-2,-1,-1),description="Backtracking"):
-            print(j)
+        for o in track(range(self.n_obs-2,-1,-1),description="Backtracking"):
             # We need to index like this to satisfy numpy's "advanced" indexing
-            z = T2[np.arange(T2.shape[0]),np.array(z),np.array([j]*self.n_samples)]
-            X[:,j] = z
+            bt_ptr = T2[np.arange(T2.shape[0]),np.array(bt_ptr),np.array([o]*self.n_samples)]
+            bt[:,o] = bt_ptr
             
         # Return states as an array
-        return X
+        return bt
