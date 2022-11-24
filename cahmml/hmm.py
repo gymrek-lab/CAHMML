@@ -1,9 +1,16 @@
 from typing import Iterable
 from abc import ABC,abstractmethod
 import numpy as np
-import hmm_util as hu
 from rich.progress import track
 import multiprocessing as mp
+
+# Custom Error Types
+class HMMError(Exception):
+    pass
+
+class HMMValidationError(HMMError):
+    pass
+
 
 class Observation(ABC):
     """Observation for use in HMM. Note that while this is fully abstract, it should have some properties!
