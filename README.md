@@ -1,3 +1,5 @@
+<img src=resources/camel.png>
+
 ## Custom $\lambda$ HMM Library
 
 Authors: Ryan Eveloff, Denghui Chen
