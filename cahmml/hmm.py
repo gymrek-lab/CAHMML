@@ -2,6 +2,7 @@ from typing import Iterable
 from abc import ABC,abstractmethod
 import numpy as np
 from rich.progress import track
+from . import util as hu
 
 class Observation(ABC):
     """Observation for use in HMM. Note that while this is fully abstract, it should have some properties!
@@ -27,7 +28,7 @@ class Sample:
         """Internal validation layer for Sample class
 
         Raises:
-            HMMValidationError: Sample fails validation layer
+            hu.HMMValidationError: Sample fails validation layer
         """        
         self.n_obs = 0
         self.obs_type = None
@@ -39,7 +40,7 @@ class Sample:
             try:
                 assert o is not None
             except AssertionError:
-                raise HMMValidationError("Observation cannot be NoneType")
+                raise hu.HMMValidationError("Observation cannot be NoneType")
             
             if self.obs_type is None:
                 self.obs_type = type(o)
@@ -47,7 +48,7 @@ class Sample:
                 try:
                     assert self.obs_type == type(o)
                 except AssertionError:
-                    raise HMMValidationError(f"Observation types {self.obs_type} and {type(o)} do not match")
+                    raise hu.HMMValidationError(f"Observation types {self.obs_type} and {type(o)} do not match")
 
     def __sizeof__(self) -> int:
         """Number of Observations for this Sample
@@ -163,7 +164,7 @@ class HMM:
             try:
                 assert s is not None
             except AssertionError:
-                raise HMMValidationError("State cannot be NoneType")
+                raise hu.HMMValidationError("State cannot be NoneType")
 
             # State types have to match
             if self.state_type is None:
@@ -172,7 +173,7 @@ class HMM:
                 try:
                     assert isinstance(s,self.state_type)
                 except AssertionError:
-                    raise HMMValidationError(f"State types {self.state_type} and {type(s)} do not match")
+                    raise hu.HMMValidationError(f"State types {self.state_type} and {type(s)} do not match")
 
         # Next, check samples
         for s in self.samples:
@@ -182,7 +183,7 @@ class HMM:
             try:
                 assert s is not None
             except AssertionError:
-                raise HMMValidationError("Sample cannot be NoneType")
+                raise hu.HMMValidationError("Sample cannot be NoneType")
 
             # Sample types have to match
             if self.sample_type is None:
@@ -193,13 +194,13 @@ class HMM:
                 try:
                     assert isinstance(s,self.sample_type)
                 except AssertionError:
-                    raise HMMValidationError(f"Sample types {self.sample_type} and {type(s)} do not match")
+                    raise hu.HMMValidationError(f"Sample types {self.sample_type} and {type(s)} do not match")
 
             # Samples have to have same number of observations
             try:
                 assert self.n_obs == s.n_obs
             except AssertionError:
-                raise HMMValidationError(f"Samples have differing number of observations ({self.n_obs} vs. {s.n_obs})")
+                raise hu.HMMValidationError(f"Samples have differing number of observations ({self.n_obs} vs. {s.n_obs})")
 
             # Sample type must also match State function!
 
@@ -207,13 +208,13 @@ class HMM:
         try:
             assert len(self.initial_probabilities) == self.n_states
         except AssertionError:
-            raise HMMValidationError(f"Initial probabilities shape does not match number of states ({len(self.initial_probabilities)} vs {self.n_states})")
+            raise hu.HMMValidationError(f"Initial probabilities shape does not match number of states ({len(self.initial_probabilities)} vs {self.n_states})")
         
     def viterbi(self) -> np.ndarray:
         """Run Viterbi algorithm on the HMM
 
         Raises:
-            HMMValidationError: Raised if fit() was not called first
+            hu.HMMValidationError: Raised if fit() was not called first
 
         Returns:
             np.ndarray: |Samples| x |Observations| matrix with state predictions
@@ -223,7 +224,7 @@ class HMM:
         try:
             assert self.samples is not None
         except AssertionError:
-            raise HMMValidationError("Call fit() before viterbi()")
+            raise hu.HMMValidationError("Call fit() before viterbi()")
 
         # Instantiate T1 and T2
         T1 = np.zeros([self.n_samples,self.n_states,self.n_obs])

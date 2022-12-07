@@ -1,8 +1,5 @@
-import sys
-sys.path.append("src")
-
-import hmm as h
-import hmm_util as hu
+from cahmml import hmm
+from cahmml import util as hu
 
 class Clothing(h.Observation):
     
