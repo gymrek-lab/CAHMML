@@ -2,15 +2,6 @@ from typing import Iterable
 from abc import ABC,abstractmethod
 import numpy as np
 from rich.progress import track
-import multiprocessing as mp
-
-# Custom Error Types
-class HMMError(Exception):
-    pass
-
-class HMMValidationError(HMMError):
-    pass
-
 
 class Observation(ABC):
     """Observation for use in HMM. Note that while this is fully abstract, it should have some properties!
@@ -36,7 +27,7 @@ class Sample:
         """Internal validation layer for Sample class
 
         Raises:
-            hu.HMMValidationError: Sample fails validation layer
+            HMMValidationError: Sample fails validation layer
         """        
         self.n_obs = 0
         self.obs_type = None
@@ -48,7 +39,7 @@ class Sample:
             try:
                 assert o is not None
             except AssertionError:
-                raise hu.HMMValidationError("Observation cannot be NoneType")
+                raise HMMValidationError("Observation cannot be NoneType")
             
             if self.obs_type is None:
                 self.obs_type = type(o)
@@ -56,7 +47,7 @@ class Sample:
                 try:
                     assert self.obs_type == type(o)
                 except AssertionError:
-                    raise hu.HMMValidationError(f"Observation types {self.obs_type} and {type(o)} do not match")
+                    raise HMMValidationError(f"Observation types {self.obs_type} and {type(o)} do not match")
 
     def __sizeof__(self) -> int:
         """Number of Observations for this Sample
@@ -77,11 +68,12 @@ class Sample:
 class State(ABC):
     
     @abstractmethod
-    def emission_probability(self,obs:Iterable[Observation],hyperparameters:dict = {}) -> np.ndarray:     
+    def emission_probability(self,obs:Iterable[Observation],t:int,hyperparameters:dict = {}) -> np.ndarray:     
         """Core emission function for the HMM, pass in extra information via kwargs
 
         Args:
             obs (Iterable[Observation]): Observations for which to compute probability
+            t (int): Timepoint index
             hyperparameters (dict, optional): Any hyperparameters you'll want passed in later. Defaults to {}.
 
         Returns:
@@ -90,12 +82,13 @@ class State(ABC):
         pass
 
     @abstractmethod    
-    def transition_probability(self,next:"State",obs:Iterable[Observation],hyperparameters:dict = {}) -> np.ndarray:
+    def transition_probability(self,next:"State",obs:Iterable[Observation],t:int,hyperparameters:dict = {}) -> np.ndarray:
         """Core transition function for the HMM, pass in extra infromation via kwargs
 
         Args:
             next (State): destination State for which to compute probability
-            obs (Iterable[Observations]): Observations for each sample 
+            obs (Iterable[Observations]): Observations for each sample
+            t (int): Timepoint index
             hyperparameters (dict, optional): Any hyperparameters you'll want passed in later. Defaults to {}.
 
         Returns:
@@ -140,9 +133,9 @@ class HMM:
         # TODO May want to parallelize eventually
         for o,obs in track(self.sample_iterator(),total=self.n_obs,description="Fitting"):
             for i,s in enumerate(self.states):
-                self.E[:,i,o] = s.emission_probability(obs,e_hparams)
+                self.E[:,i,o] = s.emission_probability(obs,o,e_hparams)
                 for j,t in enumerate(self.states):
-                    self.T[:,i,j,o] = s.transition_probability(t,obs,t_hparams)
+                    self.T[:,i,j,o] = s.transition_probability(t,obs,o,t_hparams)
 
     def sample_iterator(self):
         """Internal iterator to be passed to emission_probability and transition_probability
@@ -170,7 +163,7 @@ class HMM:
             try:
                 assert s is not None
             except AssertionError:
-                raise hu.HMMValidationError("State cannot be NoneType")
+                raise HMMValidationError("State cannot be NoneType")
 
             # State types have to match
             if self.state_type is None:
@@ -179,7 +172,7 @@ class HMM:
                 try:
                     assert isinstance(s,self.state_type)
                 except AssertionError:
-                    raise hu.HMMValidationError(f"State types {self.state_type} and {type(s)} do not match")
+                    raise HMMValidationError(f"State types {self.state_type} and {type(s)} do not match")
 
         # Next, check samples
         for s in self.samples:
@@ -189,7 +182,7 @@ class HMM:
             try:
                 assert s is not None
             except AssertionError:
-                raise hu.HMMValidationError("Sample cannot be NoneType")
+                raise HMMValidationError("Sample cannot be NoneType")
 
             # Sample types have to match
             if self.sample_type is None:
@@ -200,13 +193,13 @@ class HMM:
                 try:
                     assert isinstance(s,self.sample_type)
                 except AssertionError:
-                    raise hu.HMMValidationError(f"Sample types {self.sample_type} and {type(s)} do not match")
+                    raise HMMValidationError(f"Sample types {self.sample_type} and {type(s)} do not match")
 
             # Samples have to have same number of observations
             try:
                 assert self.n_obs == s.n_obs
             except AssertionError:
-                raise hu.HMMValidationError(f"Samples have differing number of observations ({self.n_obs} vs. {s.n_obs})")
+                raise HMMValidationError(f"Samples have differing number of observations ({self.n_obs} vs. {s.n_obs})")
 
             # Sample type must also match State function!
 
@@ -214,13 +207,13 @@ class HMM:
         try:
             assert len(self.initial_probabilities) == self.n_states
         except AssertionError:
-            raise hu.HMMValidationError(f"Initial probabilities shape does not match number of states ({len(self.initial_probabilities)} vs {self.n_states})")
+            raise HMMValidationError(f"Initial probabilities shape does not match number of states ({len(self.initial_probabilities)} vs {self.n_states})")
         
     def viterbi(self) -> np.ndarray:
         """Run Viterbi algorithm on the HMM
 
         Raises:
-            hu.HMMValidationError: Raised if fit() was not called first
+            HMMValidationError: Raised if fit() was not called first
 
         Returns:
             np.ndarray: |Samples| x |Observations| matrix with state predictions
@@ -230,7 +223,7 @@ class HMM:
         try:
             assert self.samples is not None
         except AssertionError:
-            raise hu.HMMValidationError("Call fit() before viterbi()")
+            raise HMMValidationError("Call fit() before viterbi()")
 
         # Instantiate T1 and T2
         T1 = np.zeros([self.n_samples,self.n_states,self.n_obs])
