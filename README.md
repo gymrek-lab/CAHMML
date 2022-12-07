@@ -12,8 +12,12 @@ CλHMML (aka camel) is a lightweight library meant to simplify complex Hidden Ma
 
 ## Motivation
 
+<details>
+  
 During our research into multimodal genetic HMMs, we found that the majority of plug and play HMMs available require the input of a single transition matrix $T$ and a single, finite-library emission matrix $E$. In our case, we required a scalable, multi-sample HMM architecture that could operate with a Bayesian model at each timestep. After asking our colleagues, we found that many labs simply recreate the boilerplate code necessary for running an HMM each time they require it for their research. In the effort of saving time and making HMMs a simple and efficient interface for unsupervised language modeling, we created **CλHMML**.
 
+</details>
+  
 ## Installation
 
 Use conda/mamba to install cahmml.
