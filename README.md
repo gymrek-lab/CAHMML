@@ -1,4 +1,4 @@
-<img src=resources/camel.png>
+<img src=resources/camel.png width="50%">
 
 ## Custom $\lambda$ HMM Library
 
