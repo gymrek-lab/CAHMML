@@ -111,7 +111,7 @@ Pass in a sample_id and an iterable of <code>hmm.Observation</code> to create a 
 
 Filling $T$ and $E$ runs in $\mathcal{O}(n \cdot s \cdot f)$ time, where $n$ is the number of observations, $s$ is the number of states, and $f$ is the maximum runtime of <code>transition_probability</code> and <code>emission_probability</code>. NumPy parallelization allows **Viterbi** runtime to scale linearly with the number of observations, or $\mathcal{O}(n)$.
 
-More anecdotally, we expect a run of 36 states, 100 samples, 1,000,000 observations, and constant time $T$ and $E$ functions to run in ~10 minutes with consumer-grade hardware.
+More anecdotally, we expect a run of 100 states, 100 samples, 1,000,000 observations, and constant time $T$ and $E$ functions to run in less than an hour with consumer-grade hardware.
 
 </details>
   
