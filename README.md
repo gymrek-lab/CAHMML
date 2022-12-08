@@ -8,7 +8,7 @@
   
 # CλHMML: Custom Lambda HMM Library
 
-CλHMML (aka camel) is a lightweight library meant to simplify complex Hidden Markov Models. We provide two abstract classes, <code>Observation</code> and <code>State</code>, which when implemented can run seamlessly in a parallelized HMM structure built on NumPy matrices.
+CλHMML (aka cahmml, pronounced camel) is a lightweight library meant to simplify complex Hidden Markov Models. We provide two abstract classes, <code>Observation</code> and <code>State</code>, which when implemented can run seamlessly in a parallelized HMM structure built on NumPy matrices.
 
 ## Motivation
 
