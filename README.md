@@ -3,7 +3,7 @@
 </p>
   
 <p align = "center">
-  **Ryan Eveloff, Denghui Chen**
+  <b>Ryan Eveloff, Denghui Chen</b>
 </p>
   
 # CλHMML: Custom Lambda HMM Library
