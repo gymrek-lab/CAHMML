@@ -3,7 +3,7 @@
 </p>
   
 <p align = "center">
-  Ryan Eveloff, Denghui Chen
+  **Ryan Eveloff, Denghui Chen**
 </p>
   
 # CλHMML: Custom Lambda HMM Library
@@ -83,7 +83,7 @@ Pass in a sample_id and an iterable of <code>hmm.Observation</code> to create a 
    # Given list[Observation] obs
    myFirstSample = hmm.Sample("first sample!",obs)
 ```
-  
+  ,,
 </details>
 
 ### Running an HMM
@@ -109,12 +109,16 @@ Pass in a sample_id and an iterable of <code>hmm.Observation</code> to create a 
 
 <details>
 
-Filling $T$ and $E$ runs in $\mathcal{O}(n \cdot s \cdot f)$ time, where $n$ is the number of observations, $s$ is the number of states, and $f$ is the maximum runtime of <code>transition_probability</code> and <code>emission_probability</code>. NumPy parallelization allows **Viterbi** runtime to scale linearly with the number of observations, or $\mathcal{O}(n)$.
+Filling $T$ and $E$ runs in $\mathcal{O}(m \cdot n \cdot s \cdot f)$ time, where $m$ is the number of samples, $n$ is the number of observations, $s$ is the number of states, and $f$ is the maximum runtime of <code>transition_probability</code> and <code>emission_probability</code>. NumPy parallelization allows **Viterbi** runtime to scale linearly with the number of observations, or $\mathcal{O}(n)$.
 
 More anecdotally, we expect a run of 100 states, 100 samples, 1,000,000 observations, and constant time $T$ and $E$ functions to run in less than an hour with consumer-grade hardware.
 
 </details>
   
+## Testing
+
+Coverage reports are available in our test branch; for simple HMM testing, we validated output using <code>hmmlearn</code> by scikitlearn. For complex HMM testing, we used small, hand-reproducible examples.
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first
