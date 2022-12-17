@@ -8,6 +8,7 @@ authors = ["Ryan Eveloff, Denghui Chen"]
 python = "^3.9"
 numpy = "^1.23.5"
 rich = "^12.6.0"
+pytest = "^7.2.0"
 
 [tool.poetry.dev-dependencies]
 
