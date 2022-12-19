@@ -6,7 +6,7 @@ from . import util as hu
 
 class Observation(ABC):
     """Observation for use in HMM. Note that while this is fully abstract, it should have some properties!
-    """ 
+    """
     pass
 
 class Sample:
@@ -17,7 +17,7 @@ class Sample:
         Args:
             observations (Iterable[Observation]): Observations of this Sample
             sample_id (str): ID of this Sample
-        """        
+        """
         self.sample_id = sample_id
         self.obs = observations
 
@@ -29,7 +29,12 @@ class Sample:
 
         Raises:
             hu.HMMValidationError: Sample fails validation layer
-        """        
+        """
+        try:
+            assert type(self.sample_id) == str
+        except AssertionError:
+            raise hu.HMMValidationError("Sample id type must be str")
+
         self.n_obs = 0
         self.obs_type = None
 
@@ -50,12 +55,17 @@ class Sample:
                 except AssertionError:
                     raise hu.HMMValidationError(f"Observation types {self.obs_type} and {type(o)} do not match")
 
-    def __sizeof__(self) -> int:
+        try:
+            assert self.n_obs != 0
+        except AssertionError:
+            raise hu.HMMValidationError("Observation cannot be empty")
+
+    def __len__(self) -> int:
         """Number of Observations for this Sample
 
         Returns:
             int: Number of Observations
-        """        
+        """
         return self.n_obs
 
     def __repr__(self) -> str:
@@ -63,7 +73,7 @@ class Sample:
 
         Returns:
             str: Sample ID, number of Observations, type of Observations
-        """        
+        """
         return f"{self.sample_id} with {self.n_obs} observations of type {self.obs_type}"
 
 class State(ABC):
@@ -79,7 +89,7 @@ class State(ABC):
 
         Returns:
             float: log10(P(obs|self)) x |SAMPLES|
-        """        
+        """
         pass
 
     @abstractmethod    
@@ -94,17 +104,17 @@ class State(ABC):
 
         Returns:
             float: log10(P(next|self)) x |SAMPLES|
-        """        
+        """
         pass
 
 class HMM:
-    
+
     def __init__(self,states:Iterable[State]):      
         """Constructor for HMM
 
         Args:
             states (Iterable[State]): |States| states, no need to replicate
-        """        
+        """
         self.states = states
         self.samples = None
         self.T = None
@@ -133,17 +143,17 @@ class HMM:
 
         # TODO May want to parallelize eventually
         for o,obs in track(self.sample_iterator(),total=self.n_obs,description="Fitting"):
-            for i,s in enumerate(self.states):
-                self.E[:,i,o] = s.emission_probability(obs,o,e_hparams)
-                for j,t in enumerate(self.states):
-                    self.T[:,i,j,o] = s.transition_probability(t,obs,o,t_hparams)
+            for i,s_i in enumerate(self.states):
+                self.E[:,i,o] = s_i.emission_probability(obs,o,e_hparams)
+                for j,s_j in enumerate(self.states):
+                    self.T[:,i,j,o] = s_i.transition_probability(s_j,obs,o,t_hparams)
 
     def sample_iterator(self):
         """Internal iterator to be passed to emission_probability and transition_probability
 
         Yields:
             List[Observation]: Observations for each Sample at a given timepoint
-        """        
+        """
         sample_iters = [iter(sample.obs) for sample in self.samples]
         for i in range(self.n_obs):
             yield i,[next(sample_iter) for sample_iter in sample_iters]
@@ -168,12 +178,17 @@ class HMM:
 
             # State types have to match
             if self.state_type is None:
-                self.state_type = type(s),
+                self.state_type = type(s)
             else:
                 try:
                     assert isinstance(s,self.state_type)
                 except AssertionError:
                     raise hu.HMMValidationError(f"State types {self.state_type} and {type(s)} do not match")
+        
+        try:
+            assert self.n_states != 0
+        except AssertionError:
+            raise hu.HMMValidationError("States cannot be empty")
 
         # Next, check samples
         for s in self.samples:
@@ -204,12 +219,17 @@ class HMM:
 
             # Sample type must also match State function!
 
+        try:
+            assert self.n_samples != 0
+        except AssertionError:
+            raise hu.HMMValidationError("Samples cannot be empty")
+
         # Lastly, make sure we have the correct number of states for initial probabilities
         try:
             assert len(self.initial_probabilities) == self.n_states
         except AssertionError:
             raise hu.HMMValidationError(f"Initial probabilities shape does not match number of states ({len(self.initial_probabilities)} vs {self.n_states})")
-        
+
     def viterbi(self) -> np.ndarray:
         """Run Viterbi algorithm on the HMM
 
@@ -218,7 +238,7 @@ class HMM:
 
         Returns:
             np.ndarray: |Samples| x |Observations| matrix with state predictions
-        """ 
+        """
 
         # Validate that we've already fit samples
         try:
@@ -248,11 +268,11 @@ class HMM:
         bt_ptr = T1[:,:,-1].argmax(axis=1)
         bt = np.zeros([self.n_samples,self.n_obs],dtype=int)
         bt[:,-1] = bt_ptr
-        
+
         for o in track(range(self.n_obs-2,-1,-1),description="Backtracking"):
             # We need to index like this to satisfy numpy's "advanced" indexing
-            bt_ptr = T2[np.arange(T2.shape[0]),np.array(bt_ptr),np.array([o]*self.n_samples)]
+            bt_ptr = T2[np.arange(T2.shape[0]),np.array(bt_ptr),np.array([o+1]*self.n_samples)]
             bt[:,o] = bt_ptr
-            
+
         # Return states as an array
         return bt
