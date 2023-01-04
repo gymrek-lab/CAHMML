@@ -3,6 +3,7 @@ from abc import ABC,abstractmethod
 import numpy as np
 from rich.progress import track
 from . import util as hu
+import warnings
 
 class Observation(ABC):
     """Observation for use in HMM. Note that while this is fully abstract, it should have some properties!
@@ -126,18 +127,19 @@ class HMM:
 
         Args:
             samples (Iterable[Sample]): Samples to fit HMM
-            initial_probabilities (Iterable[float]): Initial probabilities to seed transition matrix
+            initial_probabilities (Iterable[float]): Probabilities for initial state distribution.
             e_hparams (dict, optional): Hyperparameters to be passed to emission function. Defaults to {}.
             t_hparams (dict, optional): Hyperparameters to be passed to transition function. Defaults to {}.
         """
 
         self.samples = samples
-        self.initial_probabilities = initial_probabilities
+        self.initial_probabilities = np.array(initial_probabilities)
         # Any validations we need to assume before fitting
         self._validate()
 
         # Initialize the matrices
-        self.initial_probabilities = np.log10(np.array(self.initial_probabilities))
+        self.initial_probabilities = np.log10(self.initial_probabilities)
+
         self.E = np.zeros([self.n_samples,self.n_states,self.n_obs])
         self.T = np.zeros([self.n_samples,self.n_states,self.n_states,self.n_obs])
 
@@ -147,6 +149,15 @@ class HMM:
                 self.E[:,i,o] = s_i.emission_probability(obs,o,e_hparams)
                 for j,s_j in enumerate(self.states):
                     self.T[:,i,j,o] = s_i.transition_probability(s_j,obs,o,t_hparams)
+        # initialize T first observation index
+        self.T[:,:,:,0] = np.log10(1/self.n_states)
+        self._validate_E_T()
+    
+    def _validate_E_T(self):
+        if (self.E > 0).any():
+            raise hu.HMMValidationError("Emission probabilities cannot be greater than one.")
+        if (self.T > 0).any():
+            raise hu.HMMValidationError("Transition probabilities cannot be greater than one.")
 
     def sample_iterator(self):
         """Internal iterator to be passed to emission_probability and transition_probability
@@ -166,7 +177,14 @@ class HMM:
         self.state_type = None
         self.sample_type = None
 
-        # First, check states
+        # First, check initial_probabilities
+        if (self.initial_probabilities == 0).any():
+            warnings.warn("Zero(s) in the probabilities for initial state distribution might cause error.")
+        
+        if (self.initial_probabilities < 0).any() or (self.initial_probabilities > 1).any():
+            raise hu.HMMValidationError("Probabilities for initial state distribution cannot be less than zero or greater than one.")
+
+        # Next, check states
         for s in self.states:
             self.n_states += 1
 

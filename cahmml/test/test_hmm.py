@@ -244,6 +244,11 @@ class TestHMM():
         model = h.HMM(self.states)
         with pytest.raises(hu.HMMValidationError):
             model.fit(samples, initial_prob[:len(initial_prob)-1])
+        
+        # test HMM with invalid initial probability
+        model = h.HMM(self.states)
+        with pytest.raises(hu.HMMValidationError):
+            model.fit(samples, [1.6, 0.2, 0.2])
 
         ## multiple samples
         samples = []
@@ -289,6 +294,11 @@ class TestHMM():
         model = h.HMM(self.states)
         with pytest.raises(hu.HMMValidationError):
             model.fit(samples, initial_prob[:len(initial_prob)-1])
+        
+        # test HMM with invalid initial probability
+        model = h.HMM(self.states)
+        with pytest.raises(hu.HMMValidationError):
+            model.fit(samples, [1.6, 0.2, 0.2])
         
         # test HMM with samples having different number of observations
         obs = h.np.array([self.obs_options[j] for j in [0, 2, 1, 2, 2]])
