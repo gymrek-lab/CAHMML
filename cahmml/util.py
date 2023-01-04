@@ -2,5 +2,6 @@
 class HMMError(Exception):
     pass
 
+
 class HMMValidationError(HMMError):
     pass

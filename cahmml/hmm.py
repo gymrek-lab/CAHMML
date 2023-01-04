@@ -1,18 +1,24 @@
+# Built-in libraries
 from typing import Iterable
-from abc import ABC,abstractmethod
-import numpy as np
-from rich.progress import track
-from . import util as hu
+from abc import ABC, abstractmethod
 import warnings
 
+# Internal libraries
+from . import util as hu
+
+# External libraries
+import numpy as np
+from rich.progress import track
+
+
 class Observation(ABC):
-    """Observation for use in HMM. Note that while this is fully abstract, it should have some properties!
-    """
+    """Observation for use in HMM. Note that while this is fully abstract, it should have some properties!"""
+
     pass
 
-class Sample:
 
-    def __init__(self,sample_id:str,observations:Iterable[Observation]):
+class Sample:
+    def __init__(self, sample_id: str, observations: Iterable[Observation]):
         """Constructor for Sample class. Wraps Iterable of Observations.
 
         Args:
@@ -47,14 +53,16 @@ class Sample:
                 assert o is not None
             except AssertionError:
                 raise hu.HMMValidationError("Observation cannot be NoneType")
-            
+
             if self.obs_type is None:
                 self.obs_type = type(o)
             else:
                 try:
                     assert self.obs_type == type(o)
                 except AssertionError:
-                    raise hu.HMMValidationError(f"Observation types {self.obs_type} and {type(o)} do not match")
+                    raise hu.HMMValidationError(
+                        f"Observation types {self.obs_type} and {type(o)} do not match"
+                    )
 
         try:
             assert self.n_obs != 0
@@ -75,12 +83,16 @@ class Sample:
         Returns:
             str: Sample ID, number of Observations, type of Observations
         """
-        return f"{self.sample_id} with {self.n_obs} observations of type {self.obs_type}"
+        return (
+            f"{self.sample_id} with {self.n_obs} observations of type {self.obs_type}"
+        )
+
 
 class State(ABC):
-    
     @abstractmethod
-    def emission_probability(self,obs:Iterable[Observation],t:int,hyperparameters:dict = {}) -> np.ndarray:     
+    def emission_probability(
+        self, obs: Iterable[Observation], t: int, hyperparameters: dict = {}
+    ) -> np.ndarray:
         """Core emission function for the HMM, pass in extra information via kwargs
 
         Args:
@@ -93,8 +105,14 @@ class State(ABC):
         """
         pass
 
-    @abstractmethod    
-    def transition_probability(self,next:"State",obs:Iterable[Observation],t:int,hyperparameters:dict = {}) -> np.ndarray:
+    @abstractmethod
+    def transition_probability(
+        self,
+        next: "State",
+        obs: Iterable[Observation],
+        t: int,
+        hyperparameters: dict = {},
+    ) -> np.ndarray:
         """Core transition function for the HMM, pass in extra infromation via kwargs
 
         Args:
@@ -108,9 +126,9 @@ class State(ABC):
         """
         pass
 
-class HMM:
 
-    def __init__(self,states:Iterable[State]):      
+class HMM:
+    def __init__(self, states: Iterable[State]):
         """Constructor for HMM
 
         Args:
@@ -122,7 +140,13 @@ class HMM:
         self.E = None
         self.initial_probabilities = None
 
-    def fit(self,samples:Iterable[Sample],initial_probabilities:Iterable[float],e_hparams:dict = {},t_hparams:dict = {}):
+    def fit(
+        self,
+        samples: Iterable[Sample],
+        initial_probabilities: Iterable[float],
+        e_hparams: dict = {},
+        t_hparams: dict = {},
+    ):
         """Fits the HMM with the given samples, pass extra information to functions with respective kwargs
 
         Args:
@@ -131,7 +155,6 @@ class HMM:
             e_hparams (dict, optional): Hyperparameters to be passed to emission function. Defaults to {}.
             t_hparams (dict, optional): Hyperparameters to be passed to transition function. Defaults to {}.
         """
-
         self.samples = samples
         self.initial_probabilities = np.array(initial_probabilities)
         # Any validations we need to assume before fitting
@@ -140,24 +163,33 @@ class HMM:
         # Initialize the matrices
         self.initial_probabilities = np.log10(self.initial_probabilities)
 
-        self.E = np.zeros([self.n_samples,self.n_states,self.n_obs])
-        self.T = np.zeros([self.n_samples,self.n_states,self.n_states,self.n_obs])
+        self.E = np.zeros([self.n_samples, self.n_states, self.n_obs])
+        self.T = np.zeros([self.n_samples, self.n_states, self.n_states, self.n_obs])
 
-        # TODO May want to parallelize eventually
-        for o,obs in track(self.sample_iterator(),total=self.n_obs,description="Fitting"):
-            for i,s_i in enumerate(self.states):
-                self.E[:,i,o] = s_i.emission_probability(obs,o,e_hparams)
-                for j,s_j in enumerate(self.states):
-                    self.T[:,i,j,o] = s_i.transition_probability(s_j,obs,o,t_hparams)
+        # TODO Parallelizing with dask is on the docket
+        for o, obs in track(
+            self.sample_iterator(), total=self.n_obs, description="Fitting"
+        ):
+            for i, s_i in enumerate(self.states):
+                self.E[:, i, o] = s_i.emission_probability(obs, o, e_hparams)
+                for j, s_j in enumerate(self.states):
+                    self.T[:, i, j, o] = s_i.transition_probability(
+                        s_j, obs, o, t_hparams
+                    )
         # initialize T first observation index
-        self.T[:,:,:,0] = np.log10(1/self.n_states)
+        # NOTE: This could be incorrect, but it works and the math tracks
+        self.T[:, :, :, 0] = np.log10(1 / self.n_states)
         self._validate_E_T()
-    
+
     def _validate_E_T(self):
         if (self.E > 0).any():
-            raise hu.HMMValidationError("Emission probabilities cannot be greater than one.")
+            raise hu.HMMValidationError(
+                "Emission probabilities cannot be greater than one."
+            )
         if (self.T > 0).any():
-            raise hu.HMMValidationError("Transition probabilities cannot be greater than one.")
+            raise hu.HMMValidationError(
+                "Transition probabilities cannot be greater than one."
+            )
 
     def sample_iterator(self):
         """Internal iterator to be passed to emission_probability and transition_probability
@@ -167,7 +199,7 @@ class HMM:
         """
         sample_iters = [iter(sample.obs) for sample in self.samples]
         for i in range(self.n_obs):
-            yield i,[next(sample_iter) for sample_iter in sample_iters]
+            yield i, [next(sample_iter) for sample_iter in sample_iters]
 
     def _validate(self):
         self.n_states = 0
@@ -179,10 +211,16 @@ class HMM:
 
         # First, check initial_probabilities
         if (self.initial_probabilities == 0).any():
-            warnings.warn("Zero(s) in the probabilities for initial state distribution might cause error.")
-        
-        if (self.initial_probabilities < 0).any() or (self.initial_probabilities > 1).any():
-            raise hu.HMMValidationError("Probabilities for initial state distribution cannot be less than zero or greater than one.")
+            warnings.warn(
+                "Zero(s) in the probabilities for initial state distribution might cause error."
+            )
+
+        if (self.initial_probabilities < 0).any() or (
+            self.initial_probabilities > 1
+        ).any():
+            raise hu.HMMValidationError(
+                "Probabilities for initial state distribution cannot be less than zero or greater than one."
+            )
 
         # Next, check states
         for s in self.states:
@@ -199,10 +237,12 @@ class HMM:
                 self.state_type = type(s)
             else:
                 try:
-                    assert isinstance(s,self.state_type)
+                    assert isinstance(s, self.state_type)
                 except AssertionError:
-                    raise hu.HMMValidationError(f"State types {self.state_type} and {type(s)} do not match")
-        
+                    raise hu.HMMValidationError(
+                        f"State types {self.state_type} and {type(s)} do not match"
+                    )
+
         try:
             assert self.n_states != 0
         except AssertionError:
@@ -225,15 +265,19 @@ class HMM:
                 self.n_obs = s.n_obs
             else:
                 try:
-                    assert isinstance(s,self.sample_type)
+                    assert isinstance(s, self.sample_type)
                 except AssertionError:
-                    raise hu.HMMValidationError(f"Sample types {self.sample_type} and {type(s)} do not match")
+                    raise hu.HMMValidationError(
+                        f"Sample types {self.sample_type} and {type(s)} do not match"
+                    )
 
             # Samples have to have same number of observations
             try:
                 assert self.n_obs == s.n_obs
             except AssertionError:
-                raise hu.HMMValidationError(f"Samples have differing number of observations ({self.n_obs} vs. {s.n_obs})")
+                raise hu.HMMValidationError(
+                    f"Samples have differing number of observations ({self.n_obs} vs. {s.n_obs})"
+                )
 
             # Sample type must also match State function!
 
@@ -246,7 +290,9 @@ class HMM:
         try:
             assert len(self.initial_probabilities) == self.n_states
         except AssertionError:
-            raise hu.HMMValidationError(f"Initial probabilities shape does not match number of states ({len(self.initial_probabilities)} vs {self.n_states})")
+            raise hu.HMMValidationError(
+                f"Initial probabilities shape does not match number of states ({len(self.initial_probabilities)} vs {self.n_states})"
+            )
 
     def viterbi(self) -> np.ndarray:
         """Run Viterbi algorithm on the HMM
@@ -265,32 +311,39 @@ class HMM:
             raise hu.HMMValidationError("Call fit() before viterbi()")
 
         # Instantiate T1 and T2
-        T1 = np.zeros([self.n_samples,self.n_states,self.n_obs])
-        T2 = np.zeros_like(T1,dtype=int)
-        T1[:,:,0] = self.initial_probabilities + self.E[:, :, 0]
+        T1 = np.zeros([self.n_samples, self.n_states, self.n_obs])
+        T2 = np.zeros_like(T1, dtype=int)
+        T1[:, :, 0] = self.initial_probabilities + self.E[:, :, 0]
 
         # Populate Viterbi
-        for o in track(range(1,self.n_obs),description="Populating"):
+        for o in track(range(1, self.n_obs), description="Populating"):
 
             # This line is very confusing, so here's more of a description
             # Line 1: T1[k,j-1]
             # Line 2: Aki
             # Line 3: Biy
-            tmp = np.repeat(T1[:,:,o-1,np.newaxis],self.n_states,axis=-1) + self.T[:,:,:,o]
+            tmp = (
+                np.repeat(T1[:, :, o - 1, np.newaxis], self.n_states, axis=-1)
+                + self.T[:, :, :, o]
+            )
 
             # Max and argmax, respectively
-            T1[:,:,o] = tmp.max(axis=1) + self.E[:,:,o]
-            T2[:,:,o] = tmp.argmax(axis=1)
+            T1[:, :, o] = tmp.max(axis=1) + self.E[:, :, o]
+            T2[:, :, o] = tmp.argmax(axis=1)
 
         # Backtrack to find the best path
-        bt_ptr = T1[:,:,-1].argmax(axis=1)
-        bt = np.zeros([self.n_samples,self.n_obs],dtype=int)
-        bt[:,-1] = bt_ptr
+        bt_ptr = T1[:, :, -1].argmax(axis=1)
+        bt = np.zeros([self.n_samples, self.n_obs], dtype=int)
+        bt[:, -1] = bt_ptr
 
-        for o in track(range(self.n_obs-2,-1,-1),description="Backtracking"):
+        for o in track(range(self.n_obs - 2, -1, -1), description="Backtracking"):
             # We need to index like this to satisfy numpy's "advanced" indexing
-            bt_ptr = T2[np.arange(T2.shape[0]),np.array(bt_ptr),np.array([o+1]*self.n_samples)]
-            bt[:,o] = bt_ptr
+            bt_ptr = T2[
+                np.arange(T2.shape[0]),
+                np.array(bt_ptr),
+                np.array([o + 1] * self.n_samples),
+            ]
+            bt[:, o] = bt_ptr
 
         # Return states as an array
         return bt

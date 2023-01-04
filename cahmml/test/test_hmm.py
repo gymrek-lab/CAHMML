@@ -1,28 +1,26 @@
 import pytest
 import sys
+
 sys.path.append("../cahmml")
 from cahmml import hmm as h
 from cahmml import util as hu
 
-class ObsExample(h.Observation):
-    """Example Observation class for testing.
-    """
 
-    def __init__(self,obs_eg:str):
+class ObsExample(h.Observation):
+    """Example Observation class for testing."""
+
+    def __init__(self, obs_eg: str):
         self.obs_eg = obs_eg
 
     def __repr__(self):
         return self.obs_eg
 
-class TestSample():
+
+class TestSample:
 
     sample_id = "foo"
     n_obs = h.np.random.randint(100)
-    obs_options = [
-        ObsExample("obs1"),
-        ObsExample("obs2"),
-        ObsExample("obs3")
-    ]
+    obs_options = [ObsExample("obs1"), ObsExample("obs2"), ObsExample("obs3")]
     obs = h.np.random.choice(obs_options, n_obs)
 
     def test_valid_sample(self):
@@ -32,12 +30,15 @@ class TestSample():
         assert sample.obs_type == type(self.obs[0])
         assert sample.n_obs == self.n_obs
         assert len(sample) == self.n_obs
-        assert f"{sample}" == f"{self.sample_id} with {self.n_obs} observations of type {type(self.obs_options[0])}"
+        assert (
+            f"{sample}"
+            == f"{self.sample_id} with {self.n_obs} observations of type {type(self.obs_options[0])}"
+        )
 
     def test_invalid_sample(self):
         with pytest.raises(hu.HMMValidationError):
             h.Sample(0, self.obs)
-        
+
         with pytest.raises(hu.HMMValidationError):
             h.Sample(self.sample_id, [])
 
@@ -47,16 +48,19 @@ class TestSample():
         with pytest.raises(hu.HMMValidationError):
             h.Sample(self.sample_id, self.obs.tolist() + [1])
 
+
 class StateExample(h.State):
-    """Example State class for testing.
-    """
-    def __init__(self,state_eg:str):
+    """Example State class for testing."""
+
+    def __init__(self, state_eg: str):
         self.state_eg = state_eg
 
     def __repr__(self):
-        return self.state_eg 
-    
-    def emission_probability(self,obs:h.Iterable[ObsExample],t:int,hyperparameters:dict = {}):
+        return self.state_eg
+
+    def emission_probability(
+        self, obs: h.Iterable[ObsExample], t: int, hyperparameters: dict = {}
+    ):
         probs = []
         for o in obs:
             if self.state_eg == "state1":
@@ -82,7 +86,13 @@ class StateExample(h.State):
                     probs.append(0.8)
         return h.np.log10(h.np.array(probs))
 
-    def transition_probability(self,next:"StateExample",obs:h.Iterable[ObsExample],t:int,hyperparameters:dict = {}):
+    def transition_probability(
+        self,
+        next: "StateExample",
+        obs: h.Iterable[ObsExample],
+        t: int,
+        hyperparameters: dict = {},
+    ):
         probs = []
         for o in obs:
             if self.state_eg == "state1":
@@ -108,18 +118,11 @@ class StateExample(h.State):
                     probs.append(0.6)
         return h.np.log10(h.np.array(probs))
 
-class TestHMM():
 
-    states = [
-        StateExample("state1"),
-        StateExample("state2"),
-        StateExample("state3")
-    ]
-    obs_options = [
-        ObsExample("obs1"),
-        ObsExample("obs2"),
-        ObsExample("obs3")
-    ]
+class TestHMM:
+
+    states = [StateExample("state1"), StateExample("state2"), StateExample("state3")]
+    obs_options = [ObsExample("obs1"), ObsExample("obs2"), ObsExample("obs3")]
 
     def init_test_helper(self, model):
         assert h.np.array_equal(self.states, model.states)
@@ -127,10 +130,12 @@ class TestHMM():
         assert model.T == None
         assert model.E == None
         assert model.initial_probabilities == None
-    
+
     def fit_test_helper(self, samples, obs, initial_prob, model):
         assert h.np.array_equal(samples, model.samples)
-        assert h.np.array_equal(h.np.log10(h.np.array(initial_prob)), model.initial_probabilities)
+        assert h.np.array_equal(
+            h.np.log10(h.np.array(initial_prob)), model.initial_probabilities
+        )
         assert model.n_states == len(self.states)
         assert model.n_samples == len(samples)
         assert model.n_obs == len(obs)
@@ -143,7 +148,7 @@ class TestHMM():
         samples = []
         obs_list = []
         obs = h.np.array([self.obs_options[j] for j in [0, 2, 0, 2, 2, 1]])
-        samples.append(h.Sample(str(len(samples)),obs))
+        samples.append(h.Sample(str(len(samples)), obs))
         obs_list.append(obs)
 
         # test HMM __init__
@@ -157,7 +162,7 @@ class TestHMM():
 
         # test HMM sample_iterator
         expected_i = 0
-        for obs_i,obs_l in model.sample_iterator():
+        for obs_i, obs_l in model.sample_iterator():
             assert expected_i == obs_i
             expected_i += 1
             assert obs_l == [obs_list[i][obs_i] for i in range(model.n_samples)]
@@ -171,13 +176,13 @@ class TestHMM():
         samples = []
         obs_list = []
         obs = h.np.array([self.obs_options[j] for j in [0, 2, 0, 2, 2, 1]])
-        samples.append(h.Sample(str(len(samples)),obs))
+        samples.append(h.Sample(str(len(samples)), obs))
         obs_list.append(obs)
         obs = h.np.array([self.obs_options[j] for j in [0, 2, 0, 2, 2, 2]])
-        samples.append(h.Sample(str(len(samples)),obs))
+        samples.append(h.Sample(str(len(samples)), obs))
         obs_list.append(obs)
         obs = h.np.array([self.obs_options[j] for j in [0, 2, 1, 2, 2, 1]])
-        samples.append(h.Sample(str(len(samples)),obs))
+        samples.append(h.Sample(str(len(samples)), obs))
         obs_list.append(obs)
 
         # test HMM __init__
@@ -191,7 +196,7 @@ class TestHMM():
 
         # test HMM sample_iterator
         expected_i = 0
-        for obs_i,obs_l in model.sample_iterator():
+        for obs_i, obs_l in model.sample_iterator():
             assert expected_i == obs_i
             expected_i += 1
             assert obs_l == [obs_list[i][obs_i] for i in range(model.n_samples)]
@@ -199,15 +204,15 @@ class TestHMM():
         # test HMM viterbi
         # validated with hmmlearn https://github.com/hmmlearn/hmmlearn
         X = model.viterbi()
-        assert h.np.array_equal(X, [[0, 0, 0, 2, 2, 1],
-                                    [0, 0, 0, 2, 2, 2],
-                                    [0, 2, 2, 2, 2, 1]])
-    
+        assert h.np.array_equal(
+            X, [[0, 0, 0, 2, 2, 1], [0, 0, 0, 2, 2, 2], [0, 2, 2, 2, 2, 1]]
+        )
+
     def test_invalid_hmm(self):
         ## single sample
         samples = []
         obs = h.np.array([self.obs_options[j] for j in [0, 2, 0, 2, 2, 1]])
-        samples.append(h.Sample(str(len(samples)),obs))
+        samples.append(h.Sample(str(len(samples)), obs))
         initial_prob = [0.6, 0.2, 0.2]
 
         # test HMM with empty states
@@ -243,8 +248,8 @@ class TestHMM():
         # test HMM with initial probability and states non-match
         model = h.HMM(self.states)
         with pytest.raises(hu.HMMValidationError):
-            model.fit(samples, initial_prob[:len(initial_prob)-1])
-        
+            model.fit(samples, initial_prob[: len(initial_prob) - 1])
+
         # test HMM with invalid initial probability
         model = h.HMM(self.states)
         with pytest.raises(hu.HMMValidationError):
@@ -253,11 +258,11 @@ class TestHMM():
         ## multiple samples
         samples = []
         obs = h.np.array([self.obs_options[j] for j in [0, 2, 0, 2, 2, 1]])
-        samples.append(h.Sample(str(len(samples)),obs))
+        samples.append(h.Sample(str(len(samples)), obs))
         obs = h.np.array([self.obs_options[j] for j in [0, 2, 0, 2, 2, 2]])
-        samples.append(h.Sample(str(len(samples)),obs))
+        samples.append(h.Sample(str(len(samples)), obs))
         obs = h.np.array([self.obs_options[j] for j in [0, 2, 1, 2, 2, 1]])
-        samples.append(h.Sample(str(len(samples)),obs))
+        samples.append(h.Sample(str(len(samples)), obs))
         initial_prob = [0.6, 0.2, 0.2]
 
         # test HMM with empty states
@@ -293,16 +298,16 @@ class TestHMM():
         # test HMM with initial probability and states non-match
         model = h.HMM(self.states)
         with pytest.raises(hu.HMMValidationError):
-            model.fit(samples, initial_prob[:len(initial_prob)-1])
-        
+            model.fit(samples, initial_prob[: len(initial_prob) - 1])
+
         # test HMM with invalid initial probability
         model = h.HMM(self.states)
         with pytest.raises(hu.HMMValidationError):
             model.fit(samples, [1.6, 0.2, 0.2])
-        
+
         # test HMM with samples having different number of observations
         obs = h.np.array([self.obs_options[j] for j in [0, 2, 1, 2, 2]])
-        samples.append(h.Sample(str(len(samples)),obs))
+        samples.append(h.Sample(str(len(samples)), obs))
         model = h.HMM(self.states)
         with pytest.raises(hu.HMMValidationError):
             model.fit(samples, initial_prob)
