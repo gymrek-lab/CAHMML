@@ -20,12 +20,10 @@ During our research into multimodal genetic HMMs, we found that the majority of 
   
 ## Installation
 
-Use conda/mamba to install cahmml.
+We have provided a wheel in `dist` that can be used to install via pip.
 
 ```bash
-conda install cahmml
-mamba install cahmml
-micromamba install -c bioconda cahmml
+pip3 install dist/*.whl
 ```
 
 ## Usage
