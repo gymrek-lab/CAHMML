@@ -11,12 +11,8 @@
 CλHMML (aka cahmml, pronounced camel) is a lightweight library meant to simplify complex Hidden Markov Models. We provide two abstract classes, <code>Observation</code> and <code>State</code>, which when implemented can run seamlessly in a parallelized HMM structure built on NumPy matrices.
 
 ## Motivation
-
-<details>
   
 During our research into multimodal genetic HMMs, we found that the majority of plug and play HMMs available require the input of a single transition matrix $T$ and a single, finite-library emission matrix $E$. In our case, we required a scalable, multi-sample HMM architecture that could operate with a Bayesian model at each timestep. After asking our colleagues, we found that many labs simply recreate the boilerplate code necessary for running an HMM each time they require it for their research. In the effort of saving time and making HMMs a simple and efficient interface for unsupervised language modeling, we created **CλHMML**.
-
-</details>
   
 ## Installation
 
@@ -30,20 +26,14 @@ pip3 install dist/*.whl
 
 ### Importing CλHMML
 
-<details>
-
 ```python
 
 from cahmml import hmm
 ```
 
 If necessary, you can also import the utilities for CλHMML via <code>cahmml.util</code>, though it is unnecessary and generally not useful.
-
-</details>
   
 ### Initializing an HMM
-
-<details>
   
 #### State Abstract Class
   
@@ -81,12 +71,8 @@ Pass in a sample_id and an iterable of <code>hmm.Observation</code> to create a 
    # Given list[Observation] obs
    myFirstSample = hmm.Sample("first sample!",obs)
 ```
-  ,,
-</details>
 
 ### Running an HMM
-
-<details>
   
   Assuming you've already implemented <code>hmm.State</code> and <code>hmm.Observation</code>, running Viterbi on your HMM with a given input is convenient and fast!
   
@@ -100,18 +86,12 @@ Pass in a sample_id and an iterable of <code>hmm.Observation</code> to create a 
   **Note:** Advanced users can specify hyperparameters for each function via <code>e_hparams</code> and <code>t_hparams</code>!
   
   This code will yield an array corresponding to the Viterbi-predicted state of each sample at each observation.
-  
-</details>
 
 ### Addendum: Complexity Analysis
-
-<details>
 
 Filling $T$ and $E$ runs in $\mathcal{O}(m \cdot n \cdot s \cdot f)$ time, where $m$ is the number of samples, $n$ is the number of observations, $s$ is the number of states, and $f$ is the maximum runtime of <code>transition_probability</code> and <code>emission_probability</code>. NumPy parallelization allows **Viterbi** runtime to scale linearly with the number of observations, or $\mathcal{O}(n)$.
 
 More anecdotally, we expect a run of 100 states, 100 samples, 1,000,000 observations, and constant time $T$ and $E$ functions to run in less than an hour with consumer-grade hardware.
-
-</details>
   
 ## Testing
 
