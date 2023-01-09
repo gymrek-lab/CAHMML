@@ -157,39 +157,12 @@ class HMM:
         """
         self.samples = samples
         self.initial_probabilities = np.array(initial_probabilities)
+        self.e_hparams = e_hparams
+        self.t_hparams = t_hparams
         # Any validations we need to assume before fitting
         self._validate()
 
-        # Initialize the matrices
         self.initial_probabilities = np.log10(self.initial_probabilities)
-
-        self.E = np.zeros([self.n_samples, self.n_states, self.n_obs])
-        self.T = np.zeros([self.n_samples, self.n_states, self.n_states, self.n_obs])
-
-        # TODO Parallelizing with dask is on the docket
-        for o, obs in track(
-            self.sample_iterator(), total=self.n_obs, description="Fitting"
-        ):
-            for i, s_i in enumerate(self.states):
-                self.E[:, i, o] = s_i.emission_probability(obs, o, e_hparams)
-                for j, s_j in enumerate(self.states):
-                    self.T[:, i, j, o] = s_i.transition_probability(
-                        s_j, obs, o, t_hparams
-                    )
-        # initialize T first observation index
-        # NOTE: This could be incorrect, but it works and the math tracks
-        self.T[:, :, :, 0] = np.log10(1 / self.n_states)
-        self._validate_E_T()
-
-    def _validate_E_T(self):
-        if (self.E > 0).any():
-            raise hu.HMMValidationError(
-                "Emission probabilities cannot be greater than one."
-            )
-        if (self.T > 0).any():
-            raise hu.HMMValidationError(
-                "Transition probabilities cannot be greater than one."
-            )
 
     def sample_iterator(self):
         """Internal iterator to be passed to emission_probability and transition_probability
@@ -294,8 +267,8 @@ class HMM:
                 f"Initial probabilities shape does not match number of states ({len(self.initial_probabilities)} vs {self.n_states})"
             )
 
-    def viterbi(self) -> np.ndarray:
-        """Run Viterbi algorithm on the HMM
+    def viterbi(self) -> np.ndarray:        
+        """Solve a fitted HMM using Viterbi
 
         Raises:
             hu.HMMValidationError: Raised if fit() was not called first
@@ -310,13 +283,34 @@ class HMM:
         except AssertionError:
             raise hu.HMMValidationError("Call fit() before viterbi()")
 
-        # Instantiate T1 and T2
+        # Placeholder matrices for probabilities
         T1 = np.zeros([self.n_samples, self.n_states, self.n_obs])
         T2 = np.zeros_like(T1, dtype=int)
-        T1[:, :, 0] = self.initial_probabilities + self.E[:, :, 0]
+        T_o = np.zeros([self.n_samples,self.n_states,self.n_states])
+        E_o = np.zeros([self.n_samples,self.n_states])
 
         # Populate Viterbi
-        for o in track(range(1, self.n_obs), description="Populating"):
+        for o,obs in track(
+            self.sample_iterator(), total=self.n_obs, description="Fitting"
+        ):
+
+            # Calculate emission probabilities
+            for i, s_i in enumerate(self.states):
+                E_o[:,i] = s_i.emission_probability(obs,o,self.e_hparams)
+            if (E_o > 0).any():
+                raise hu.HMMValidationError("Emission probability cannot exceed 1.")
+
+            # Special case: first observation
+            if o == 0:
+                T1[:,:,o] = self.initial_probabilities + E_o
+                continue
+
+            # Calculate transition probabilities
+            for i, s_i in enumerate(self.states):
+                for j, s_j in enumerate(self.states):
+                    T_o[:,i,j] = s_i.transition_probability(s_j,obs,o,self.t_hparams)
+            if (T_o > 0).any():
+                raise hu.HMMValidationError("Transition probability cannot exceed 1.")
 
             # This line is very confusing, so here's more of a description
             # Line 1: T1[k,j-1]
@@ -324,11 +318,11 @@ class HMM:
             # Line 3: Biy
             tmp = (
                 np.repeat(T1[:, :, o - 1, np.newaxis], self.n_states, axis=-1)
-                + self.T[:, :, :, o]
+                + T_o
             )
 
             # Max and argmax, respectively
-            T1[:, :, o] = tmp.max(axis=1) + self.E[:, :, o]
+            T1[:, :, o] = tmp.max(axis=1) + E_o
             T2[:, :, o] = tmp.argmax(axis=1)
 
         # Backtrack to find the best path
