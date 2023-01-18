@@ -91,6 +91,8 @@ Pass in a sample_id and an iterable of <code>hmm.Observation</code> to create a 
 
 Filling $T$ and $E$ runs in $\mathcal{O}(m \cdot n \cdot s \cdot f)$ time, where $m$ is the number of samples, $n$ is the number of observations, $s$ is the number of states, and $f$ is the maximum runtime of <code>transition_probability</code> and <code>emission_probability</code>. NumPy parallelization allows **Viterbi** runtime to scale linearly with the number of observations, or $\mathcal{O}(n)$.
 
+Space complexity has been reduced to $\mathcal{O}(ms^2)$ for most of runtime. Viterbi space complexity has not been decreased for easier backtracking, though compression could be implemented to drop space complexity to $\Theta(m \cdot n)$, the floor required to return final state predictions.
+
 More anecdotally, we expect a run of 100 states, 100 samples, 1,000,000 observations, and constant time $T$ and $E$ functions to run in less than an hour with consumer-grade hardware.
   
 ## Testing
