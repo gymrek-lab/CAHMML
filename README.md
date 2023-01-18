@@ -16,10 +16,10 @@ During our research into multimodal genetic HMMs, we found that the majority of 
   
 ## Installation
 
-We have provided a wheel in `dist` that can be used to install via pip.
+Install cahmml from PyPi using the following command:
 
 ```bash
-pip3 install dist/*.whl
+pip3 install cahmml
 ```
 
 ## Usage
