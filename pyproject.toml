@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cahmml"
-version = "0.1.0"
+version = "1.0.0"
 description = "Custom Lambda HMM Library"
 authors = ["Ryan Eveloff, Denghui Chen"]
 
