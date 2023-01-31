@@ -1,5 +1,5 @@
 # Built-in libraries
-from typing import Iterable
+from typing import Iterable, Tuple
 from abc import ABC, abstractmethod
 import warnings
 
@@ -341,3 +341,45 @@ class HMM:
 
         # Return states as an array
         return bt
+
+    def _forward(self):
+        """Forward component of forward-backward algorithm, don't call this.
+
+        Returns:
+            Tuple[np.ndarray]: full forward array and final probabilities
+        """  
+        fwd = np.zeros([self.n_samples,self.n_states,self.n_obs])
+        prev_sum = np.zeros([self.n_samples,self.n_states])
+        prev = None
+
+    def _backward(self) -> Tuple[np.ndarray]:
+        """Backward component of forward-backward algorithm, don't call this.
+
+        Returns:
+            Tuple[np.ndarray]: full backward array and final probabilities
+        """
+
+    def fb(self) -> np.ndarray:     
+        """Forward-backward algorithm to obtain a-posteriori probabilities
+
+        Raises:
+            hu.HMMValidationError: Raised if fit() was not called first
+
+        Returns:
+            np.ndarray: |Samples| x |States| x |Observations| matrix with state probabilities
+        """        
+        # Validate that we've already fit samples
+        try:
+            assert self.samples is not None
+        except AssertionError:
+            raise hu.HMMValidationError("Call fit() before fb()")
+
+        fwd,p_fwd = self._forward()
+        bwd,p_bwd = self._backward()
+
+        posterior = fwd * bwd / p_fwd
+
+        assert p_fwd == p_bwd
+        return posterior
+
+
