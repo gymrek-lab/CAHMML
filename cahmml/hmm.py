@@ -164,13 +164,20 @@ class HMM:
 
         self.initial_probabilities = np.log10(self.initial_probabilities)
 
-    def sample_iterator(self):
+    def sample_iterator(self, reversed: bool = False):
         """Internal iterator to be passed to emission_probability and transition_probability
+
+        Args:
+            reversed (bool, optional): Reverse observation order. Defaults to False.
 
         Yields:
             List[Observation]: Observations for each Sample at a given timepoint
+
         """
-        sample_iters = [iter(sample.obs) for sample in self.samples]
+        if reversed:
+            sample_iters = [iter(sample.obs[::-1]) for sample in self.samples]
+        else:
+            sample_iters = [iter(sample.obs) for sample in self.samples]
         for i in range(self.n_obs):
             yield i, [next(sample_iter) for sample_iter in sample_iters]
 
@@ -267,7 +274,7 @@ class HMM:
                 f"Initial probabilities shape does not match number of states ({len(self.initial_probabilities)} vs {self.n_states})"
             )
 
-    def viterbi(self) -> np.ndarray:        
+    def viterbi(self) -> np.ndarray:
         """Solve a fitted HMM using Viterbi
 
         Raises:
@@ -286,29 +293,31 @@ class HMM:
         # Placeholder matrices for probabilities
         T1 = np.zeros([self.n_samples, self.n_states, self.n_obs])
         T2 = np.zeros_like(T1, dtype=int)
-        T_o = np.zeros([self.n_samples,self.n_states,self.n_states])
-        E_o = np.zeros([self.n_samples,self.n_states])
+        T_o = np.zeros([self.n_samples, self.n_states, self.n_states])
+        E_o = np.zeros([self.n_samples, self.n_states])
 
         # Populate Viterbi
-        for o,obs in track(
+        for o, obs in track(
             self.sample_iterator(), total=self.n_obs, description="Fitting"
         ):
 
             # Calculate emission probabilities
             for i, s_i in enumerate(self.states):
-                E_o[:,i] = s_i.emission_probability(obs,o,self.e_hparams)
+                E_o[:, i] = s_i.emission_probability(obs, o, self.e_hparams)
             if (E_o > 0).any():
                 raise hu.HMMValidationError("Emission probability cannot exceed 1.")
 
             # Special case: first observation
             if o == 0:
-                T1[:,:,o] = self.initial_probabilities + E_o
+                T1[:, :, o] = self.initial_probabilities + E_o
                 continue
 
             # Calculate transition probabilities
             for i, s_i in enumerate(self.states):
                 for j, s_j in enumerate(self.states):
-                    T_o[:,i,j] = s_i.transition_probability(s_j,obs,o,self.t_hparams)
+                    T_o[:, i, j] = s_i.transition_probability(
+                        s_j, obs, o, self.t_hparams
+                    )
             if (T_o > 0).any():
                 raise hu.HMMValidationError("Transition probability cannot exceed 1.")
 
@@ -316,10 +325,7 @@ class HMM:
             # Line 1: T1[k,j-1]
             # Line 2: Aki
             # Line 3: Biy
-            tmp = (
-                np.repeat(T1[:, :, o - 1, np.newaxis], self.n_states, axis=-1)
-                + T_o
-            )
+            tmp = np.repeat(T1[:, :, o - 1, np.newaxis], self.n_states, axis=-1) + T_o
 
             # Max and argmax, respectively
             T1[:, :, o] = tmp.max(axis=1) + E_o
@@ -347,9 +353,9 @@ class HMM:
 
         Returns:
             Tuple[np.ndarray]: full forward array and final probabilities
-        """  
-        fwd = np.zeros([self.n_samples,self.n_states,self.n_obs])
-        prev_sum = np.zeros([self.n_samples,self.n_states])
+        """
+        fwd = np.zeros([self.n_samples, self.n_states, self.n_obs])
+        prev_sum = np.zeros([self.n_samples, self.n_states])
         prev = None
 
     def _backward(self) -> Tuple[np.ndarray]:
@@ -359,7 +365,7 @@ class HMM:
             Tuple[np.ndarray]: full backward array and final probabilities
         """
 
-    def fb(self) -> np.ndarray:     
+    def fb(self) -> np.ndarray:
         """Forward-backward algorithm to obtain a-posteriori probabilities
 
         Raises:
@@ -367,19 +373,17 @@ class HMM:
 
         Returns:
             np.ndarray: |Samples| x |States| x |Observations| matrix with state probabilities
-        """        
+        """
         # Validate that we've already fit samples
         try:
             assert self.samples is not None
         except AssertionError:
             raise hu.HMMValidationError("Call fit() before fb()")
 
-        fwd,p_fwd = self._forward()
-        bwd,p_bwd = self._backward()
+        fwd, p_fwd = self._forward()
+        bwd, p_bwd = self._backward()
 
         posterior = fwd * bwd / p_fwd
 
         assert p_fwd == p_bwd
         return posterior
-
-
