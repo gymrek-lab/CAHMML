@@ -101,7 +101,7 @@ class State(ABC):
             hyperparameters (dict, optional): Any hyperparameters you'll want passed in later. Defaults to {}.
 
         Returns:
-            float: log10(P(obs|self)) x |SAMPLES|
+            float: P(obs|self) x |SAMPLES|
         """
         pass
 
@@ -122,7 +122,7 @@ class State(ABC):
             hyperparameters (dict, optional): Any hyperparameters you'll want passed in later. Defaults to {}.
 
         Returns:
-            float: log10(P(next|self)) x |SAMPLES|
+            float: P(next|self) x |SAMPLES|
         """
         pass
 
@@ -161,8 +161,6 @@ class HMM:
         self.t_hparams = t_hparams
         # Any validations we need to assume before fitting
         self._validate()
-
-        self.initial_probabilities = np.log10(self.initial_probabilities)
 
     def sample_iterator(self, reversed: bool = False):
         """Internal iterator to be passed to emission_probability and transition_probability
@@ -303,21 +301,21 @@ class HMM:
 
             # Calculate emission probabilities
             for i, s_i in enumerate(self.states):
-                E_o[:, i] = s_i.emission_probability(obs, o, self.e_hparams)
+                E_o[:, i] = np.log10(s_i.emission_probability(obs, o, self.e_hparams))
             if (E_o > 0).any():
                 raise hu.HMMValidationError("Emission probability cannot exceed 1.")
 
             # Special case: first observation
             if o == 0:
-                T1[:, :, o] = self.initial_probabilities + E_o
+                T1[:, :, o] = np.log10(self.initial_probabilities) + E_o
                 continue
 
             # Calculate transition probabilities
             for i, s_i in enumerate(self.states):
                 for j, s_j in enumerate(self.states):
-                    T_o[:, i, j] = s_i.transition_probability(
+                    T_o[:, i, j] = np.log10(s_i.transition_probability(
                         s_j, obs, o, self.t_hparams
-                    )
+                    ))
             if (T_o > 0).any():
                 raise hu.HMMValidationError("Transition probability cannot exceed 1.")
 

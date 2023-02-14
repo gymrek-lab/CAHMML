@@ -84,7 +84,7 @@ class StateExample(h.State):
                     probs.append(0.199)
                 elif o.obs_eg == "obs3":
                     probs.append(0.8)
-        return h.np.log10(h.np.array(probs))
+        return h.np.array(probs)
 
     def transition_probability(
         self,
@@ -116,7 +116,7 @@ class StateExample(h.State):
                     probs.append(0.3)
                 elif next.state_eg == "state3":
                     probs.append(0.6)
-        return h.np.log10(h.np.array(probs))
+        return h.np.array(probs)
 
 
 class TestHMM:
@@ -134,7 +134,7 @@ class TestHMM:
     def fit_test_helper(self, samples, obs, initial_prob, model):
         assert h.np.array_equal(samples, model.samples)
         assert h.np.array_equal(
-            h.np.log10(h.np.array(initial_prob)), model.initial_probabilities
+            h.np.array(initial_prob), model.initial_probabilities
         )
         assert model.n_states == len(self.states)
         assert model.n_samples == len(samples)
