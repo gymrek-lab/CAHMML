@@ -363,32 +363,28 @@ class HMM:
         ):  
             # Calculate emission probabilities
             for i, s_i in enumerate(self.states):
-                E_o[:, i] = s_i.emission_probability(obs, o, self.e_hparams)
-            if (E_o > 1).any():
+                E_o[:, i] = np.log10(s_i.emission_probability(obs, o, self.e_hparams))
+            if (E_o > 0).any():
                 raise hu.HMMValidationError("Emission probability cannot exceed 1.")
-            elif (E_o < 0).any():
-                raise hu.HMMValidationError("Emission probability cannot be less than 0.")
-            
+
             # Calculate transition probabilities
             for i, s_i in enumerate(self.states):
                 for j, s_j in enumerate(self.states):
-                    T_o[:, i, j] = s_i.transition_probability(
+                    T_o[:, i, j] = np.log10(s_i.transition_probability(
                         s_j, obs, o, self.t_hparams
-                    )
-            if (T_o > 1).any():
+                    ))
+            if (T_o > 0).any():
                 raise hu.HMMValidationError("Transition probability cannot exceed 1.")
-            elif (T_o < 0).any():
-                raise hu.HMMValidationError("Transition probability cannot be less than 0.")
             
             if o == 0:
                 # Special case: first observation
-                prev_sum = np.repeat(self.initial_probabilities[np.newaxis, :], self.n_samples, axis=0)
+                prev_sum = np.repeat(np.log10(self.initial_probabilities)[np.newaxis, :], self.n_samples, axis=0)
             else:
                 # General case
-                prev_sum = np.sum(np.multiply(np.transpose(prev[:,np.newaxis], axes=(0,2,1)), T_o), axis=1)
-            prev = np.multiply(prev_sum, E_o)
+                prev_sum = hu.logsum10(np.transpose(prev[:,np.newaxis], axes=(0,2,1)) + T_o, axis=1)
+            prev = prev_sum + E_o
             fwd[:, :, o] =  prev
-        p_fwd = np.sum(fwd[:, :, -1], axis=1)
+        p_fwd = hu.logsum10(fwd[:, :, -1], axis=1)
         return fwd, p_fwd
 
 
@@ -410,45 +406,37 @@ class HMM:
         ):
             if o == 0:
                 # Special case: first observation
-                prev_sum = np.ones((self.n_samples, self.n_states))
+                prev_sum = np.zeros((self.n_samples, self.n_states))
             else:
                 # General case
 
                 # Calculate emission probabilities
                 for i, s_i in enumerate(self.states):
-                    E_o[:, i] = s_i.emission_probability(pre_obs, self.n_obs-1-o, self.e_hparams)
-                if (E_o > 1).any():
+                    E_o[:, i] = np.log10(s_i.emission_probability(pre_obs, self.n_obs-1-o, self.e_hparams))
+                if (E_o > 0).any():
                     raise hu.HMMValidationError("Emission probability cannot exceed 1.")
-                elif (E_o < 0).any():
-                    raise hu.HMMValidationError("Emission probability cannot be less than 0.")
-                
+
                 # Calculate transition probabilities
                 for i, s_i in enumerate(self.states):
                     for j, s_j in enumerate(self.states):
-                        T_o[:, i, j] = s_i.transition_probability(
+                        T_o[:, i, j] = np.log10(s_i.transition_probability(
                             s_j, pre_obs, self.n_obs-1-o, self.t_hparams
-                        )
-                if (T_o > 1).any():
+                        ))
+                if (T_o > 0).any():
                     raise hu.HMMValidationError("Transition probability cannot exceed 1.")
-                elif (T_o < 0).any():
-                    raise hu.HMMValidationError("Transition probability cannot be less than 0.")
-                prev_sum = np.sum(np.multiply(np.transpose(np.multiply(T_o, E_o[:,np.newaxis]), axes=(0,2,1)),
-                                              np.transpose(prev[:,np.newaxis], axes=(0,2,1))), axis=1)
-            
+
+                prev_sum = hu.logsum10(T_o + E_o[:,np.newaxis] + prev[:,np.newaxis], axis=2)
             prev = prev_sum
             bwd[:, :, -o-1] =  prev
             pre_obs = obs
 
         # Calculate emission probabilities for backward probability
         for i, s_i in enumerate(self.states):
-            E_o[:, i] = s_i.emission_probability(pre_obs, self.n_obs-o, self.e_hparams)
-        if (E_o > 1).any():
+            E_o[:, i] = np.log10(s_i.emission_probability(pre_obs, self.n_obs-o, self.e_hparams))
+        if (E_o > 0).any():
             raise hu.HMMValidationError("Emission probability cannot exceed 1.")
-        elif (E_o < 0).any():
-            raise hu.HMMValidationError("Emission probability cannot be less than 0.")
 
-        p_bwd = np.sum(np.multiply(np.multiply(np.repeat(self.initial_probabilities[np.newaxis, :], self.n_samples, axis=0),
-                                               E_o), bwd[:, :, 0]), axis=1)
+        p_bwd = hu.logsum10(np.repeat(np.log10(self.initial_probabilities)[np.newaxis, :], self.n_samples, axis=0) + E_o + bwd[:, :, 0], axis=1)
         return bwd, p_bwd
 
     def fb(self) -> np.ndarray:
@@ -469,7 +457,7 @@ class HMM:
         fwd, p_fwd = self._forward()
         bwd, p_bwd = self._backward()
 
-        posterior = fwd * bwd / p_fwd[:, np.newaxis, np.newaxis]
+        posterior = np.power(10, fwd + bwd - p_fwd[:, np.newaxis, np.newaxis])
 
         assert (np.isclose(p_fwd, p_bwd, rtol=1e-20)).all()
         return posterior
