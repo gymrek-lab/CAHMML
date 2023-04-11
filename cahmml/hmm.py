@@ -101,7 +101,7 @@ class State(ABC):
             hyperparameters (dict, optional): Any hyperparameters you'll want passed in later. Defaults to {}.
 
         Returns:
-            float: log10(P(obs|self)) x |SAMPLES|
+            float: P(obs|self) x |SAMPLES|
         """
         pass
 
@@ -122,7 +122,7 @@ class State(ABC):
             hyperparameters (dict, optional): Any hyperparameters you'll want passed in later. Defaults to {}.
 
         Returns:
-            float: log10(P(next|self)) x |SAMPLES|
+            float: P(next|self) x |SAMPLES|
         """
         pass
 
@@ -161,8 +161,6 @@ class HMM:
         self.t_hparams = t_hparams
         # Any validations we need to assume before fitting
         self._validate()
-
-        self.initial_probabilities = np.log10(self.initial_probabilities)
 
     def sample_iterator(self, reversed: bool = False):
         """Internal iterator to be passed to emission_probability and transition_probability
@@ -303,21 +301,21 @@ class HMM:
 
             # Calculate emission probabilities
             for i, s_i in enumerate(self.states):
-                E_o[:, i] = s_i.emission_probability(obs, o, self.e_hparams)
+                E_o[:, i] = np.log10(s_i.emission_probability(obs, o, self.e_hparams))
             if (E_o > 0).any():
                 raise hu.HMMValidationError("Emission probability cannot exceed 1.")
 
             # Special case: first observation
             if o == 0:
-                T1[:, :, o] = self.initial_probabilities + E_o
+                T1[:, :, o] = np.log10(self.initial_probabilities) + E_o
                 continue
 
             # Calculate transition probabilities
             for i, s_i in enumerate(self.states):
                 for j, s_j in enumerate(self.states):
-                    T_o[:, i, j] = s_i.transition_probability(
+                    T_o[:, i, j] = np.log10(s_i.transition_probability(
                         s_j, obs, o, self.t_hparams
-                    )
+                    ))
             if (T_o > 0).any():
                 raise hu.HMMValidationError("Transition probability cannot exceed 1.")
 
@@ -357,6 +355,38 @@ class HMM:
         fwd = np.zeros([self.n_samples, self.n_states, self.n_obs])
         prev_sum = np.zeros([self.n_samples, self.n_states])
         prev = None
+        T_o = np.zeros([self.n_samples, self.n_states, self.n_states])
+        E_o = np.zeros([self.n_samples, self.n_states])
+
+        for o, obs in track(
+            self.sample_iterator(), total=self.n_obs, description="Forward"
+        ):  
+            # Calculate emission probabilities
+            for i, s_i in enumerate(self.states):
+                E_o[:, i] = np.log10(s_i.emission_probability(obs, o, self.e_hparams))
+            if (E_o > 0).any():
+                raise hu.HMMValidationError("Emission probability cannot exceed 1.")
+
+            # Calculate transition probabilities
+            for i, s_i in enumerate(self.states):
+                for j, s_j in enumerate(self.states):
+                    T_o[:, i, j] = np.log10(s_i.transition_probability(
+                        s_j, obs, o, self.t_hparams
+                    ))
+            if (T_o > 0).any():
+                raise hu.HMMValidationError("Transition probability cannot exceed 1.")
+            
+            if o == 0:
+                # Special case: first observation
+                prev_sum = np.repeat(np.log10(self.initial_probabilities)[np.newaxis, :], self.n_samples, axis=0)
+            else:
+                # General case
+                prev_sum = hu.logsum10(np.transpose(prev[:,np.newaxis], axes=(0,2,1)) + T_o, axis=1)
+            prev = prev_sum + E_o
+            fwd[:, :, o] =  prev
+        p_fwd = hu.logsum10(fwd[:, :, -1], axis=1)
+        return fwd, p_fwd
+
 
     def _backward(self) -> Tuple[np.ndarray]:
         """Backward component of forward-backward algorithm, don't call this.
@@ -364,6 +394,50 @@ class HMM:
         Returns:
             Tuple[np.ndarray]: full backward array and final probabilities
         """
+        bwd = np.zeros([self.n_samples, self.n_states, self.n_obs])
+        prev_sum = np.zeros([self.n_samples, self.n_states])
+        prev = None
+        pre_obs = None
+        T_o = np.zeros([self.n_samples, self.n_states, self.n_states])
+        E_o = np.zeros([self.n_samples, self.n_states])
+
+        for o, obs in track(
+            self.sample_iterator(reversed=True), total=self.n_obs, description="Backward"
+        ):
+            if o == 0:
+                # Special case: first observation
+                prev_sum = np.zeros((self.n_samples, self.n_states))
+            else:
+                # General case
+
+                # Calculate emission probabilities
+                for i, s_i in enumerate(self.states):
+                    E_o[:, i] = np.log10(s_i.emission_probability(pre_obs, self.n_obs-1-o, self.e_hparams))
+                if (E_o > 0).any():
+                    raise hu.HMMValidationError("Emission probability cannot exceed 1.")
+
+                # Calculate transition probabilities
+                for i, s_i in enumerate(self.states):
+                    for j, s_j in enumerate(self.states):
+                        T_o[:, i, j] = np.log10(s_i.transition_probability(
+                            s_j, pre_obs, self.n_obs-1-o, self.t_hparams
+                        ))
+                if (T_o > 0).any():
+                    raise hu.HMMValidationError("Transition probability cannot exceed 1.")
+
+                prev_sum = hu.logsum10(T_o + E_o[:,np.newaxis] + prev[:,np.newaxis], axis=2)
+            prev = prev_sum
+            bwd[:, :, -o-1] =  prev
+            pre_obs = obs
+
+        # Calculate emission probabilities for backward probability
+        for i, s_i in enumerate(self.states):
+            E_o[:, i] = np.log10(s_i.emission_probability(pre_obs, self.n_obs-o, self.e_hparams))
+        if (E_o > 0).any():
+            raise hu.HMMValidationError("Emission probability cannot exceed 1.")
+
+        p_bwd = hu.logsum10(np.repeat(np.log10(self.initial_probabilities)[np.newaxis, :], self.n_samples, axis=0) + E_o + bwd[:, :, 0], axis=1)
+        return bwd, p_bwd
 
     def fb(self) -> np.ndarray:
         """Forward-backward algorithm to obtain a-posteriori probabilities
@@ -383,7 +457,7 @@ class HMM:
         fwd, p_fwd = self._forward()
         bwd, p_bwd = self._backward()
 
-        posterior = fwd * bwd / p_fwd
+        posterior = np.power(10, fwd + bwd - p_fwd[:, np.newaxis, np.newaxis])
 
-        assert p_fwd == p_bwd
+        assert (np.isclose(p_fwd, p_bwd, rtol=1e-20)).all()
         return posterior
