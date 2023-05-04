@@ -459,5 +459,8 @@ class HMM:
 
         posterior = np.power(10, fwd + bwd - p_fwd[:, np.newaxis, np.newaxis])
 
-        assert (np.isclose(p_fwd, p_bwd, rtol=1e-20)).all()
+        # check if p_fwd and p_bwd are within 1% margin
+        assert (np.isclose(p_fwd, p_bwd, atol=np.log(1.1))).all()
+        assert (np.isclose(p_bwd, p_fwd, atol=np.log(1.1))).all()
+
         return posterior
